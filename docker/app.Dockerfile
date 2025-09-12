@@ -40,7 +40,8 @@ RUN bun install sharp
 
 ENV NEXT_TELEMETRY_DISABLED=1 \
     VERCEL_TELEMETRY_DISABLED=1 \
-    DOCKER_BUILD=1
+    DOCKER_BUILD=1 \
+    SKIP_LINT=true
 
 WORKDIR /app
 RUN bun run build

@@ -22,7 +22,7 @@
     "lint:all": "bun run lint && bun run lint:helm",
     "check": "bunx biome check --files-ignore-unknown=true",
     "prepare": "bun husky",
-    "prebuild": "bun run lint:check",
+    "prebuild": "if [ \"$SKIP_LINT\" != \"true\" ]; then bun run lint:check; fi",
     "type-check": "turbo run type-check"
   },
   "overrides": {
