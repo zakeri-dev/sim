@@ -1,0 +1,70 @@
+# Docker Compose Override for Development
+# This file automatically overrides docker-compose.local.yml for development
+# Changes to source code will be reflected immediately without rebuild
+
+services:
+  simstudio:
+    # Override build to use development mode
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+      target: deps # Stop at deps stage for development
+    # Add development environment variables
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+      - VERCEL_TELEMETRY_DISABLED=1
+    # Bind mount source code for hot reload
+    volumes:
+      # Mount the entire project for development
+      - .:/app
+      # Exclude node_modules to use container's dependencies
+      - /app/node_modules
+      - /app/apps/sim/node_modules
+      - /app/apps/sim/.next
+      # Mount specific directories that need to be watched
+      - ./apps/sim:/app/apps/sim
+      - ./packages:/app/packages
+      - ./lib:/app/lib
+      - ./components:/app/components
+    # Override command to run in development mode
+    command: ["bun", "run", "dev:full"]
+    # Add development ports
+    ports:
+      - "3000:3000" # Next.js dev server
+      - "3002:3002" # Socket server
+
+  realtime:
+    # Override build to use development mode
+    build:
+      context: .
+      dockerfile: docker/realtime.Dockerfile
+      target: deps # Stop at deps stage for development
+    # Add development environment variables
+    environment:
+      - NODE_ENV=development
+    # Bind mount source code
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/sim/node_modules
+      - ./apps/sim:/app/apps/sim
+      - ./packages:/app/packages
+    # Override command to run socket server in development mode
+    command: ["bun", "run", "dev:sockets"]
+
+  migrations:
+    # Keep migrations as is - no need for development overrides
+    # This service runs once and exits
+    build:
+      context: .
+      dockerfile: docker/db.Dockerfile
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-simstudio}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["bun", "run", "db:migrate"]
+    restart: "no"
+
+  # db service doesn't need overrides - keep as is
