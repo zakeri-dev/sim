@@ -7,7 +7,7 @@ FROM oven/bun:alpine AS base
 # Dependencies Stage: Install Dependencies
 # ========================================
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat || apk add --no-cache gcompat
 WORKDIR /app
 
 # Install turbo globally
