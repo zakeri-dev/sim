@@ -2,7 +2,7 @@ services:
   simstudio:
     build:
       context: .
-      dockerfile: docker/app.Dockerfile
+      dockerfile: docker/app.dev.Dockerfile
     ports:
       - "3000:3000"
     deploy:
@@ -20,6 +20,19 @@ services:
       - SIM_AGENT_API_URL=${SIM_AGENT_API_URL}
       - OLLAMA_URL=${OLLAMA_URL:-http://localhost:11434}
       - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL:-http://localhost:3002}
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Mount source code for live reload
+      - ./apps/sim:/app/apps/sim
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./bun.lock:/app/bun.lock
+      - ./turbo.json:/app/turbo.json
+      # Exclude node_modules to use container's version
+      - /app/node_modules
+      - /app/apps/sim/node_modules
+      - /app/apps/sim/.next
     depends_on:
       db:
         condition: service_healthy
@@ -33,16 +46,26 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    command: ["bun", "run", "dev", "--port", "3000", "--hostname", "0.0.0.0"]
 
   realtime:
     build:
       context: .
-      dockerfile: docker/realtime.Dockerfile
+      dockerfile: docker/realtime.dev.Dockerfile
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-simstudio}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-your_auth_secret_here}
+      - NODE_ENV=development
+    volumes:
+      # Mount source code for live reload
+      - ./apps/sim:/app/apps/sim
+      - ./packages:/app/packages
+      - ./package.json:/app/package.json
+      - ./bun.lock:/app/bun.lock
+      # Exclude node_modules to use container's version
+      - /app/node_modules
     depends_on:
       db:
         condition: service_healthy
@@ -60,6 +83,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    command: ["bun", "run", "dev:sockets"]
 
   migrations:
     build:

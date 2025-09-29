@@ -1,121 +1,150 @@
-# Development Setup with Docker
+# راهنمای Development با Live Reload
 
-## استفاده از Docker Compose Override برای Development
-
-این پروژه از `docker-compose.override.yml` برای development استفاده می‌کنه که به شما امکان hot reload و تغییرات فوری رو می‌ده.
-
-## نحوه استفاده
-
-### 1. اجرای Development Environment
-
-```bash
-# اجرای تمام سرویس‌ها در حالت development
-docker-compose up
-
-# یا اجرای در background
-docker-compose up -d
-```
-
-### 2. مشاهده Logs
-
-```bash
-# مشاهده logs تمام سرویس‌ها
-docker-compose logs -f
-
-# مشاهده logs سرویس خاص
-docker-compose logs -f simstudio
-docker-compose logs -f realtime
-```
-
-### 3. توقف سرویس‌ها
-
-```bash
-# توقف تمام سرویس‌ها
-docker-compose down
-
-# توقف و حذف volumes
-docker-compose down -v
-```
+این راهنما نحوه اجرای پروژه در حالت development با قابلیت live reload را توضیح می‌دهد.
 
 ## ویژگی‌های Development Mode
 
-### ✅ Hot Reload
+- ✅ **Live Reload**: تغییرات کد به صورت خودکار نمایش داده می‌شود
+- ✅ **Hot Module Replacement**: تغییرات React components بدون reload صفحه
+- ✅ **Volume Mounting**: کد شما مستقیماً در container mount می‌شود
+- ✅ **Development Dependencies**: تمام dev dependencies نصب می‌شوند
 
-- تغییرات در کد مستقیماً در کانتینر اعمال می‌شن
-- نیازی به rebuild نیست
-- Next.js و Socket Server هر دو hot reload دارن
+## نحوه اجرا
 
-### ✅ Bind Mounts
+### روش 1: استفاده از اسکریپت‌های آماده
 
-- کدهای پروژه مستقیماً mount شدن
-- `node_modules` از کانتینر استفاده می‌شه (سریع‌تر)
-- فایل‌های build (`.next`) ignore شدن
+#### در Windows:
 
-### ✅ Development Commands
+```bash
+dev.bat
+```
 
-- `simstudio`: `bun run dev:full` (Next.js + Socket Server)
-- `realtime`: `bun run dev:sockets` (فقط Socket Server)
+#### در Linux/Mac:
 
-## Ports
+```bash
+./dev.sh
+```
 
-- **3000**: Next.js Development Server
-- **3002**: Socket Server
-- **5432**: PostgreSQL Database
-- **8080**: Realtime Service (external)
-- **8081**: Main App (external)
+### روش 2: اجرای مستقیم Docker Compose
+
+```bash
+docker-compose -f docker-compose.dev.yml up -d --build
+```
+
+## فایل‌های جدید ایجاد شده
+
+### 1. `docker-compose.dev.yml`
+
+فایل Docker Compose مخصوص development که شامل:
+
+- Volume mapping برای live reload
+- Environment variables مناسب development
+- Health checks
+- Resource limits
+
+### 2. `docker/app.dev.Dockerfile`
+
+Dockerfile مخصوص development برای اپلیکیشن اصلی که شامل:
+
+- نصب dev dependencies
+- تنظیمات development environment
+- Command مناسب برای development server
+
+### 3. `docker/realtime.dev.Dockerfile`
+
+Dockerfile مخصوص development برای realtime server
+
+### 4. `dev.sh` و `dev.bat`
+
+اسکریپت‌های اجرا برای Windows و Linux
+
+## تفاوت‌های Development Mode
+
+| ویژگی           | Production      | Development      |
+| --------------- | --------------- | ---------------- |
+| Build           | Full build      | Live reload      |
+| Dependencies    | Production only | All dependencies |
+| Volume Mounting | No              | Yes              |
+| Environment     | Production      | Development      |
+| Hot Reload      | No              | Yes              |
+
+## Volume Mapping
+
+فایل‌های زیر در container mount می‌شوند:
+
+- `./apps/sim` → `/app/apps/sim`
+- `./packages` → `/app/packages`
+- `./package.json` → `/app/package.json`
+- `./bun.lock` → `/app/bun.lock`
+- `./turbo.json` → `/app/turbo.json`
 
 ## Environment Variables
 
-تمام environment variables از `docker-compose.local.yml` استفاده می‌شن، اما در development mode:
+فایل `.env` به صورت خودکار ایجاد می‌شود با مقادیر پیش‌فرض:
 
-- `NODE_ENV=development`
-- `NEXT_TELEMETRY_DISABLED=1`
-- `VERCEL_TELEMETRY_DISABLED=1`
-
-## Troubleshooting
-
-### مشکل: تغییرات اعمال نمی‌شن
-
-```bash
-# Restart سرویس
-docker-compose restart simstudio
-
-# یا rebuild فقط dependencies
-docker-compose build --no-cache simstudio
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=simstudio
+POSTGRES_PORT=5432
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+BETTER_AUTH_SECRET=your_auth_secret_here_change_this_in_production
+ENCRYPTION_KEY=your_encryption_key_here_change_this_in_production
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3002
 ```
 
-### مشکل: node_modules کار نمی‌کنه
+## دستورات مفید
+
+### متوقف کردن environment:
 
 ```bash
-# حذف و rebuild
-docker-compose down
-docker-compose build --no-cache
-docker-compose up
+docker-compose -f docker-compose.dev.yml down
 ```
 
-### مشکل: Port در حال استفاده
+### مشاهده لاگ‌ها:
 
 ```bash
-# بررسی ports در حال استفاده
-netstat -tulpn | grep :3000
-netstat -tulpn | grep :3002
-
-# تغییر port در docker-compose.override.yml
+docker-compose -f docker-compose.dev.yml logs -f
 ```
 
-## Production vs Development
-
-- **Production**: از `docker-compose.local.yml` استفاده کنه
-- **Development**: از `docker-compose.override.yml` استفاده کنه (اتوماتیک)
-
-برای production:
+### Restart کردن سرویس‌ها:
 
 ```bash
-docker-compose -f docker-compose.local.yml up
+docker-compose -f docker-compose.dev.yml restart
 ```
 
-برای development:
+### Rebuild کردن:
 
 ```bash
-docker-compose up  # override فایل خودکار اعمال می‌شه
+docker-compose -f docker-compose.dev.yml up -d --build
 ```
+
+## پورت‌ها
+
+- **Application**: http://localhost:3000
+- **Socket Server**: http://localhost:3002
+- **Database**: localhost:5432
+
+## نکات مهم
+
+1. **اولین بار**: ممکن است build کردن کمی طول بکشد
+2. **Volume Mounting**: تغییرات در فایل‌های mount شده بلافاصله اعمال می‌شود
+3. **Database**: داده‌های database در volume `postgres_data` ذخیره می‌شود
+4. **Performance**: در development mode ممکن است کمی کندتر باشد
+
+## عیب‌یابی
+
+### مشکل: تغییرات نمایش داده نمی‌شود
+
+- بررسی کنید که volume mapping درست باشد
+- container را restart کنید
+
+### مشکل: Port در دسترس نیست
+
+- بررسی کنید که پورت‌ها در دسترس باشند
+- از `docker ps` برای بررسی container ها استفاده کنید
+
+### مشکل: Database connection
+
+- بررسی کنید که database container در حال اجرا باشد
+- Environment variables را بررسی کنید
