@@ -2,7 +2,7 @@ services:
   simstudio:
     build:
       context: .
-      dockerfile: docker/app.dev.Dockerfile
+      dockerfile: docker/app.Dockerfile
     ports:
       - "3000:3000"
     deploy:
@@ -46,12 +46,13 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    command: ["bun", "run", "dev", "--port", "3000", "--hostname", "0.0.0.0"]
+    # Override the production command with development command
+    command: ["sh", "-c", "cd /app/apps/sim && bun run dev"]
 
   realtime:
     build:
       context: .
-      dockerfile: docker/realtime.dev.Dockerfile
+      dockerfile: docker/realtime.Dockerfile
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-simstudio}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
@@ -83,7 +84,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    command: ["bun", "run", "dev:sockets"]
+    # Override the production command with development command
+    command: ["sh", "-c", "cd /app && bun run dev:sockets"]
 
   migrations:
     build:
